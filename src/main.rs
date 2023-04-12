@@ -193,9 +193,9 @@ impl eframe::App for SkannaApp {
             // The central panel the region left after adding TopPanel's and SidePanel's
             ui.vertical(|ui| {
                 ui.heading("Skanna app Hallgríms");
-                ui.label("Skanna hér");
                 ui.horizontal(|ui| {
                     ui.vertical(|ui| {
+                        ui.label("Skanna hér");
                         let scan = ui.text_edit_singleline(skannabox);
                         if self.app_starting {
                             scan.request_focus();
@@ -221,7 +221,10 @@ impl eframe::App for SkannaApp {
                         }
                         
                     });
-                    ui.text_edit_singleline(magnbox);
+                    ui.vertical(|ui| {
+                        ui.label("Magn hér");
+                        ui.text_edit_singleline(magnbox);
+                    })
                 });
                 ui.text_edit_multiline(listabox);
             });
