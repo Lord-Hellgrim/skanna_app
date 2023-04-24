@@ -1,12 +1,12 @@
 #![warn(clippy::all, rust_2018_idioms)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use sqlx::postgres::PgPoolOptions;
+// use sqlx::postgres::PgPoolOptions;
 
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]
-#[tokio::main]
-async fn main() -> eframe::Result<()> {
+//#[tokio::main]
+fn main(){
     // Log to stdout (if you run with `RUST_LOG=debug`).
     tracing_subscriber::fmt::init();
 
@@ -15,7 +15,7 @@ async fn main() -> eframe::Result<()> {
         "eframe template",
         native_options,
         Box::new(|cc| Box::new(SkannaApp::new(cc))),
-    )
+    );
 }
 
 // when compiling to web using trunk.
@@ -58,7 +58,6 @@ fn make_display_string(input: &mut HashMap<String, (i32, usize)>) -> String {
         output.push(temp);
     }
     output.sort_by(|a, b| a[4].cmp(&b[4]));
-
     let mut disp_string = String::from("");
     for item in output.iter().rev() {
         for thing in item {
@@ -75,7 +74,6 @@ struct SkannaApp {
     skannabox: String,
     magnbox: String,
     listabox: String,
-    //#[serde(skip)]
     value: f32,
     window_open: bool,
     dropped_files: Vec<egui::DroppedFile>,
@@ -154,6 +152,7 @@ impl eframe::App for SkannaApp {
                     if ui.button("Quit").clicked() {
                         _frame.close();
                     };
+                    // This will open a menu later
                     if ui.button("Open window").clicked() {
                         self.window_open = true;
                     }
@@ -161,33 +160,33 @@ impl eframe::App for SkannaApp {
             });
         });
 
-        egui::SidePanel::left("side_panel").show(ctx, |ui| {
-            ui.heading("Side Panel");
+        // egui::SidePanel::left("side_panel").show(ctx, |ui| {
+        //     ui.heading("Side Panel");
 
-            ui.horizontal(|ui| {
-                ui.label("Write something: ");
-                ui.text_edit_singleline(label);
-            });
+        //     ui.horizontal(|ui| {
+        //         ui.label("Write something: ");
+        //         ui.text_edit_singleline(label);
+        //     });
 
-            ui.add(egui::Slider::new(value, 0.0..=10.0).text("value"));
-            if ui.button("Increment").clicked() {
-                *value += 1.0;
-            }
+        //     ui.add(egui::Slider::new(value, 0.0..=10.0).text("value"));
+        //     if ui.button("Increment").clicked() {
+        //         *value += 1.0;
+        //     }
 
-            ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x = 0.0;
-                    ui.label("powered by ");
-                    ui.hyperlink_to("egui", "https://github.com/emilk/egui");
-                    ui.label(" and ");
-                    ui.hyperlink_to(
-                        "eframe",
-                        "https://github.com/emilk/egui/tree/master/crates/eframe",
-                    );
-                    ui.label(".");
-                });
-            });
-        });
+        //     ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
+        //         ui.horizontal(|ui| {
+        //             ui.spacing_mut().item_spacing.x = 0.0;
+        //             ui.label("powered by ");
+        //             ui.hyperlink_to("egui", "https://github.com/emilk/egui");
+        //             ui.label(" and ");
+        //             ui.hyperlink_to(
+        //                 "eframe",
+        //                 "https://github.com/emilk/egui/tree/master/crates/eframe",
+        //             );
+        //             ui.label(".");
+        //         });
+        //     });
+        // });
 
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
@@ -201,28 +200,36 @@ impl eframe::App for SkannaApp {
                             scan.request_focus();
                             self.app_starting = false;
                         }
-                        if (ui.button("<enter>").clicked()
+                        if ui.button("<enter>").clicked()
                             ||  // or
-                            ctx.input(|i| i.key_pressed(egui::Key::Enter)) && skannabox.trim() != "")
+                            ctx.input(|i| i.key_pressed(egui::Key::Enter))
+                            // &&  // and
+                            // skannabox.trim() != ""
                         {
                             let key = skannabox.clone();
+                            if key == "" {
+                                
+                            }
                             let incr: i32 = match magnbox.parse() {
                                     Ok(num) => num,
                                     Err(_) => 0,
                                   };
                             let magn = match vorulisti.get(&key) {
-                                Some(value) => value.0 + incr,                
-                                None => incr,
+                                Some(value) => (value.0 + incr, vorulisti.len()),                
+                                None => (incr, vorulisti.len()+1),
                             };
-                            vorulisti.insert(key, (magn, vorulisti.len()));
+                            vorulisti.insert(key, magn);
                             *listabox = make_display_string(vorulisti);
                             scan.request_focus();
                             skannabox.clear();
                         }
                         
                     });
+
+                    // THIS PART IS WHAT MY DISCORD QUESTION REFERS TO
                     ui.vertical(|ui| {
                         ui.label("Magn hér");
+                        // Specifically this line
                         ui.text_edit_singleline(magnbox);
                     })
                 });
