@@ -161,46 +161,67 @@ impl eframe::App for SkannaApp {
             });
         });
 
-        // egui::SidePanel::left("side_panel").show(ctx, |ui| {
-        //     ui.heading("Side Panel");
+        let header_panel = egui::TopBottomPanel::top("head_panel").min_height(10.0).max_height(1000.0).resizable(true);
+        header_panel.show(ctx, |ui| {
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                // Add a lot of widgets here.
+                ui.text_edit_multiline(magnbox);
+            });
+        });
 
-        //     ui.horizontal(|ui| {
-        //         ui.label("Write something: ");
-        //         ui.text_edit_singleline(label);
-        //     });
+        egui::SidePanel::left("side_panel").show(ctx, |ui| {
+            ui.heading("Side Panel");
 
-        //     ui.add(egui::Slider::new(value, 0.0..=10.0).text("value"));
-        //     if ui.button("Increment").clicked() {
-        //         *value += 1.0;
-        //     }
+            ui.horizontal(|ui| {
+                ui.label("Write something: ");
+                ui.text_edit_singleline(label);
+            });
 
-        //     ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-        //         ui.horizontal(|ui| {
-        //             ui.spacing_mut().item_spacing.x = 0.0;
-        //             ui.label("powered by ");
-        //             ui.hyperlink_to("egui", "https://github.com/emilk/egui");
-        //             ui.label(" and ");
-        //             ui.hyperlink_to(
-        //                 "eframe",
-        //                 "https://github.com/emilk/egui/tree/master/crates/eframe",
-        //             );
-        //             ui.label(".");
-        //         });
-        //     });
-        // });
+            ui.add(egui::Slider::new(value, 0.0..=10.0).text("value"));
+            if ui.button("Increment").clicked() {
+                *value += 1.0;
+            }
+
+            ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = 0.0;
+                    ui.label("powered by ");
+                    ui.hyperlink_to("egui", "https://github.com/emilk/egui");
+                    ui.label(" and ");
+                    ui.hyperlink_to(
+                        "eframe",
+                        "https://github.com/emilk/egui/tree/master/crates/eframe",
+                    );
+                    ui.label(".");
+                });
+            });
+        });
 
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
             ui.vertical(|ui| {
                 ui.heading("Skanna app Hallgríms");
                 ui.horizontal(|ui| {
+                    ui.label("Skanna hér");
+                    ui.add_space(40.0);
+                    ui.label("Magn hér");
+
+                });
+
+                ui.horizontal(|ui| {
+                    let scan = ui.add(egui::TextEdit::singleline(skannabox).desired_width(100.0));
+                    if self.app_starting {
+                        scan.request_focus();
+                        self.app_starting = false;
+                    }
+                    // THIS PART IS WHAT MY DISCORD QUESTION REFERS TO
                     ui.vertical(|ui| {
-                        ui.label("Skanna hér");
-                        let scan = ui.text_edit_singleline(skannabox);
-                        if self.app_starting {
-                            scan.request_focus();
-                            self.app_starting = false;
-                        }
+                        // Specifically this line
+                        ui.add(egui::TextEdit::singleline(magnbox).desired_width(35.0));
+                        //ui.text_edit_singleline(magnbox);
+                    });
+                    ui.add_space(20.0);
+                    ui.vertical(|ui| {
                         if ui.button("<enter>").clicked()
                             ||  // or
                             ctx.input(|i| i.key_pressed(egui::Key::Enter))
@@ -225,34 +246,10 @@ impl eframe::App for SkannaApp {
                                 skannabox.clear();
 
                             }
-
-                            // let key = (self.start_time.elapsed().unwrap().as_secs(), skannabox.clone());
-                            // if key.1 == "" {
-                                
-                            // } else {
-                            //     let incr: i32 = match magnbox.parse() {
-                            //         Ok(num) => num,
-                            //         Err(_) => 0,
-                            //     };
-                            //     let magn = match vorulisti.get(&key) {
-                            //         Some(value) => value.0 + incr,             
-                            //         None => incr,
-                            //     };
-                            //     vorulisti.insert(key, magn);
-                            //     *listabox = make_display_string(vorulisti);
-                            //     scan.request_focus();
-                            //     skannabox.clear();
-                            // }
                         }
                         
                     });
 
-                    // THIS PART IS WHAT MY DISCORD QUESTION REFERS TO
-                    ui.vertical(|ui| {
-                        ui.label("Magn hér");
-                        // Specifically this line
-                        ui.text_edit_singleline(magnbox);
-                    })
                 });
                 ui.text_edit_multiline(listabox);
             });
