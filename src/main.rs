@@ -1,6 +1,10 @@
 #![warn(clippy::all, rust_2018_idioms)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
+
+use std::collections::HashMap;
+use std::time::SystemTime;
+
 // use sqlx::postgres::PgPoolOptions;
 
 // When compiling natively:
@@ -40,30 +44,24 @@ fn main() {
     });
 }
 
-use std::collections::HashMap;
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 //#[derive(serde::Deserialize, serde::Serialize)]
 //#[serde(default)] // if we add new fields, give them default values when deserializing old state
 
-fn make_display_string(input: &mut HashMap<String, (i32, usize)>) -> String {
-    let mut output = Vec::new();
+fn make_display_string(input: &mut HashMap<String, (i32, u64 /* last scanned at */)>) -> String {
+    
+    let mut temp = Vec::new();
     for (key, value) in input {
-        let mut temp = Vec::new();
-        temp.push(key.clone());
-        temp.push(String::from("\t"));
-        temp.push(value.0.to_string());
-        temp.push(String::from("\n"));
-        temp.push(value.1.to_string());
-        output.push(temp);
+        temp.push((key, value.0, value.1));
     }
-    output.sort_by(|a, b| a[4].cmp(&b[4]));
+    temp.sort_by(|a, b| a.2.cmp(&b.2));
     let mut disp_string = String::from("");
-    for item in output.iter().rev() {
-        for thing in item {
-            disp_string.push_str(&thing);
-        }
-        disp_string.pop();
+    for item in temp.iter().rev() {
+        disp_string.push_str(&item.0);
+        disp_string.push('\t');
+        disp_string.push_str(&item.1.to_string());
+        disp_string.push('\n');
     }
     disp_string
 }
@@ -79,7 +77,8 @@ struct SkannaApp {
     dropped_files: Vec<egui::DroppedFile>,
     picked_path: Option<String>,
     app_starting: bool,
-    vorulisti: HashMap<String, (i32, usize)>,
+    vorulisti: HashMap<String, (i32, u64)>,
+    start_time: SystemTime,
 }
 
 impl Default for SkannaApp {
@@ -96,6 +95,7 @@ impl Default for SkannaApp {
             picked_path: None,
             app_starting: true,
             vorulisti: HashMap::new(),
+            start_time: SystemTime::now(),
         }
     }
 }
@@ -137,6 +137,7 @@ impl eframe::App for SkannaApp {
             picked_path,
             app_starting,
             vorulisti,
+            start_time,
         } = self;
 
         // Examples of how to create different panels and windows.
@@ -206,22 +207,42 @@ impl eframe::App for SkannaApp {
                             // &&  // and
                             // skannabox.trim() != ""
                         {
+
                             let key = skannabox.clone();
-                            if key == "" {
-                                
-                            }
-                            let incr: i32 = match magnbox.parse() {
+                            let timestamp: u64 = self.start_time.elapsed().expect("Some time should have elapsed here").as_secs();
+                            if key != "" {
+                                let incr: i32 = match magnbox.parse() {
                                     Ok(num) => num,
                                     Err(_) => 0,
-                                  };
-                            let magn = match vorulisti.get(&key) {
-                                Some(value) => (value.0 + incr, vorulisti.len()),                
-                                None => (incr, vorulisti.len()+1),
-                            };
-                            vorulisti.insert(key, magn);
-                            *listabox = make_display_string(vorulisti);
-                            scan.request_focus();
-                            skannabox.clear();
+                                };
+                                let magn = match vorulisti.get(&key) {
+                                    Some(value) => incr + value.0,
+                                    None => incr,
+                                };
+                                vorulisti.insert(key, (magn, timestamp));
+                                *listabox = make_display_string(vorulisti);
+                                scan.request_focus();
+                                skannabox.clear();
+
+                            }
+
+                            // let key = (self.start_time.elapsed().unwrap().as_secs(), skannabox.clone());
+                            // if key.1 == "" {
+                                
+                            // } else {
+                            //     let incr: i32 = match magnbox.parse() {
+                            //         Ok(num) => num,
+                            //         Err(_) => 0,
+                            //     };
+                            //     let magn = match vorulisti.get(&key) {
+                            //         Some(value) => value.0 + incr,             
+                            //         None => incr,
+                            //     };
+                            //     vorulisti.insert(key, magn);
+                            //     *listabox = make_display_string(vorulisti);
+                            //     scan.request_focus();
+                            //     skannabox.clear();
+                            // }
                         }
                         
                     });
