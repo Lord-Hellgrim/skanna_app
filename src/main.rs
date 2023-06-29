@@ -79,6 +79,7 @@ struct SkannaApp {
     app_starting: bool,
     vorulisti: HashMap<String, (i32, u64)>,
     start_time: SystemTime,
+    app_switch: u8,
 }
 
 impl Default for SkannaApp {
@@ -96,6 +97,7 @@ impl Default for SkannaApp {
             app_starting: true,
             vorulisti: HashMap::new(),
             start_time: SystemTime::now(),
+            app_switch: 0,
         }
     }
 }
@@ -138,7 +140,10 @@ impl eframe::App for SkannaApp {
             app_starting,
             vorulisti,
             start_time,
+            app_switch,
         } = self;
+
+        
 
         // Examples of how to create different panels and windows.
         // Pick whichever suits you.
@@ -165,36 +170,49 @@ impl eframe::App for SkannaApp {
         header_panel.show(ctx, |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 // Add a lot of widgets here.
-                ui.text_edit_multiline(magnbox);
+                ui.horizontal(|ui| {
+                    let purchase_order_switch = ui.add_sized([120., 40.], egui::Button::new("Purchase Order"));
+                    if purchase_order_switch.clicked() {
+                        println!("Sale!");
+                    }
+                    let sales_order_switch = ui.add_sized([120., 40.], egui::Button::new("Sales Order"));
+                    if sales_order_switch.clicked() {
+                        println!("Purchase!");
+                    }
+                    let transfer_order_switch = ui.add_sized([120., 40.], egui::Button::new("Transfer Order"));
+                    if transfer_order_switch.clicked() {
+                        println!("Transfer!");
+                    }
+                    let correction_order_switch = ui.add_sized([120., 40.], egui::Button::new("Correction Order"));
+                    if correction_order_switch.clicked() {
+                        println!("Correction!");
+                    }
+                });
             });
         });
 
         egui::SidePanel::left("side_panel").show(ctx, |ui| {
-            ui.heading("Side Panel");
 
-            ui.horizontal(|ui| {
-                ui.label("Write something: ");
-                ui.text_edit_singleline(label);
+            ui.vertical(|ui| {
+                ui.add_space(50.0);
+                let purchase_order_switch = ui.add_sized([120., 40.], egui::Button::new("Action 1"));
+                if purchase_order_switch.clicked() {
+                    println!("Sale!");
+                }
+                let sales_order_switch = ui.add_sized([120., 40.], egui::Button::new("Action 2"));
+                if sales_order_switch.clicked() {
+                    println!("Purchase!");
+                }
+                let transfer_order_switch = ui.add_sized([120., 40.], egui::Button::new("Action 3"));
+                if transfer_order_switch.clicked() {
+                    println!("Transfer!");
+                }
+                let correction_order_switch = ui.add_sized([120., 40.], egui::Button::new("Action 4"));
+                if correction_order_switch.clicked() {
+                    println!("Correction!");
+                }
             });
 
-            ui.add(egui::Slider::new(value, 0.0..=10.0).text("value"));
-            if ui.button("Increment").clicked() {
-                *value += 1.0;
-            }
-
-            ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x = 0.0;
-                    ui.label("powered by ");
-                    ui.hyperlink_to("egui", "https://github.com/emilk/egui");
-                    ui.label(" and ");
-                    ui.hyperlink_to(
-                        "eframe",
-                        "https://github.com/emilk/egui/tree/master/crates/eframe",
-                    );
-                    ui.label(".");
-                });
-            });
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -214,19 +232,15 @@ impl eframe::App for SkannaApp {
                         scan.request_focus();
                         self.app_starting = false;
                     }
-                    // THIS PART IS WHAT MY DISCORD QUESTION REFERS TO
                     ui.vertical(|ui| {
-                        // Specifically this line
                         ui.add(egui::TextEdit::singleline(magnbox).desired_width(35.0));
-                        //ui.text_edit_singleline(magnbox);
                     });
                     ui.add_space(20.0);
                     ui.vertical(|ui| {
+
                         if ui.button("<enter>").clicked()
                             ||  // or
                             ctx.input(|i| i.key_pressed(egui::Key::Enter))
-                            // &&  // and
-                            // skannabox.trim() != ""
                         {
 
                             let key = skannabox.clone();
@@ -244,19 +258,18 @@ impl eframe::App for SkannaApp {
                                 *listabox = make_display_string(vorulisti);
                                 scan.request_focus();
                                 skannabox.clear();
-
+                            } else {
+                                scan.request_focus();
                             }
                         }
                         
                     });
 
                 });
-                ui.text_edit_multiline(listabox);
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    ui.add(egui::TextEdit::multiline(listabox).desired_rows(35));
+                });
             });
         });
-
-        
-
-        
     }
 }
