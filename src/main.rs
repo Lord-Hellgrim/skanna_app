@@ -2,7 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeMap};
 use std::time::SystemTime;
 
 // use sqlx::postgres::PgPoolOptions;
@@ -49,7 +49,7 @@ fn main() {
 //#[derive(serde::Deserialize, serde::Serialize)]
 //#[serde(default)] // if we add new fields, give them default values when deserializing old state
 
-fn make_display_string(input: &mut HashMap<String, (i32, u64 /* last scanned at */)>) -> String {
+fn make_display_string(input: &mut HashMap<String, (i32, u64)>) -> String {
     
     let mut temp = Vec::new();
     for (key, value) in input {
@@ -66,38 +66,71 @@ fn make_display_string(input: &mut HashMap<String, (i32, u64 /* last scanned at 
     disp_string
 }
 
+struct Product {
+    id: String,
+    name: String,
+    cost: f64,
+    price: f64,
+    stock: i64,
+}
+
+impl Product {
+    pub fn new(id: String) -> Product {
+        Product {
+            id: id,
+            name: "Standard".to_owned(),
+            cost: 10.0,
+            price: 10.0,
+            stock: 50,
+        }
+    }
+}
+
 struct SkannaApp {
     // Example stuff:
-    label: String,
     skannabox: String,
     magnbox: String,
     listabox: String,
-    value: f32,
-    window_open: bool,
-    dropped_files: Vec<egui::DroppedFile>,
     picked_path: Option<String>,
     app_starting: bool,
     vorulisti: HashMap<String, (i32, u64)>,
+    product_list: Vec<Product>,
     start_time: SystemTime,
     app_switch: u8,
+    current_warehouse: String,
+    add_product: String,
 }
 
 impl Default for SkannaApp {
     fn default() -> Self {
         Self {
             // Example stuff:
-            label: "Hello World!".to_owned(),
             skannabox: String::from(""),
             magnbox: String::from("1"),
             listabox: String::from("Hér kemur svo listinn"),
-            value: 2.7,
-            window_open: false,
-            dropped_files: Vec::new(),
             picked_path: None,
             app_starting: true,
             vorulisti: HashMap::new(),
+            product_list: Vec::from([
+                Product {
+                    id: "0113035".to_owned(),
+                    name: "Undirlegg".to_owned(),
+                    cost: 300.0,
+                    price: 1000.0,
+                    stock: 100,
+                },
+                Product {
+                    id: "18572054".to_owned(),
+                    name: "Flísalím".to_owned(),
+                    cost: 2000.0,
+                    price: 4500.0,
+                    stock: 42,
+                },
+            ]),
             start_time: SystemTime::now(),
             app_switch: 0,
+            current_warehouse: "WH01".to_owned(),
+            add_product: "".to_owned(),
         }
     }
 }
@@ -129,18 +162,17 @@ impl eframe::App for SkannaApp {
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let Self {
-            label,
             skannabox,
             listabox,
             magnbox,
-            value,
-            window_open,
-            dropped_files,
             picked_path,
             app_starting,
             vorulisti,
+            product_list,
             start_time,
             app_switch,
+            current_warehouse,
+            add_product,
         } = self;
 
         
@@ -158,10 +190,7 @@ impl eframe::App for SkannaApp {
                     if ui.button("Quit").clicked() {
                         _frame.close();
                     };
-                    // This will open a menu later
-                    if ui.button("Open window").clicked() {
-                        self.window_open = true;
-                    }
+                    
                 });
             });
         });
@@ -173,19 +202,23 @@ impl eframe::App for SkannaApp {
                 ui.horizontal(|ui| {
                     let purchase_order_switch = ui.add_sized([120., 40.], egui::Button::new("Purchase Order"));
                     if purchase_order_switch.clicked() {
-                        println!("Sale!");
+                        *app_switch = 0;
+                        println!("{}", app_switch);
                     }
                     let sales_order_switch = ui.add_sized([120., 40.], egui::Button::new("Sales Order"));
                     if sales_order_switch.clicked() {
-                        println!("Purchase!");
+                        *app_switch = 1;
+                        println!("{}", app_switch);
                     }
                     let transfer_order_switch = ui.add_sized([120., 40.], egui::Button::new("Transfer Order"));
                     if transfer_order_switch.clicked() {
-                        println!("Transfer!");
+                        *app_switch = 2;
+                        println!("{}", app_switch);
                     }
                     let correction_order_switch = ui.add_sized([120., 40.], egui::Button::new("Correction Order"));
                     if correction_order_switch.clicked() {
-                        println!("Correction!");
+                        *app_switch = 3;
+                        println!("{}", app_switch);
                     }
                 });
             });
@@ -215,61 +248,87 @@ impl eframe::App for SkannaApp {
 
         });
 
-        egui::CentralPanel::default().show(ctx, |ui| {
-            // The central panel the region left after adding TopPanel's and SidePanel's
-            ui.vertical(|ui| {
-                ui.heading("Skanna app Hallgríms");
-                ui.horizontal(|ui| {
-                    ui.label("Skanna hér");
-                    ui.add_space(40.0);
-                    ui.label("Magn hér");
-
-                });
-
-                ui.horizontal(|ui| {
-                    let scan = ui.add(egui::TextEdit::singleline(skannabox).desired_width(100.0));
-                    if self.app_starting {
-                        scan.request_focus();
-                        self.app_starting = false;
-                    }
-                    ui.vertical(|ui| {
-                        ui.add(egui::TextEdit::singleline(magnbox).desired_width(35.0));
+        if self.app_switch == 0 {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                // The central panel the region left after adding TopPanel's and SidePanel's
+                ui.vertical(|ui| {
+                    ui.heading("Skanna app Hallgríms");
+                    ui.horizontal(|ui| {
+                        ui.label("Skanna hér");
+                        ui.add_space(40.0);
+                        ui.label("Magn hér");
+    
                     });
-                    ui.add_space(20.0);
-                    ui.vertical(|ui| {
-
-                        if ui.button("<enter>").clicked()
-                            ||  // or
-                            ctx.input(|i| i.key_pressed(egui::Key::Enter))
-                        {
-
-                            let key = skannabox.clone();
-                            let timestamp: u64 = self.start_time.elapsed().expect("Some time should have elapsed here").as_secs();
-                            if key != "" {
-                                let incr: i32 = match magnbox.parse() {
-                                    Ok(num) => num,
-                                    Err(_) => 0,
-                                };
-                                let magn = match vorulisti.get(&key) {
-                                    Some(value) => incr + value.0,
-                                    None => incr,
-                                };
-                                vorulisti.insert(key, (magn, timestamp));
-                                *listabox = make_display_string(vorulisti);
-                                scan.request_focus();
-                                skannabox.clear();
-                            } else {
-                                scan.request_focus();
-                            }
+    
+                    ui.horizontal(|ui| {
+                        let scan = ui.add(egui::TextEdit::singleline(skannabox).desired_width(100.0));
+                        if self.app_starting {
+                            scan.request_focus();
+                            self.app_starting = false;
                         }
-                        
+                        ui.vertical(|ui| {
+                            ui.add(egui::TextEdit::singleline(magnbox).desired_width(35.0));
+                        });
+                        ui.add_space(20.0);
+                        ui.vertical(|ui| {
+    
+                            if ui.button("<enter>").clicked()
+                                ||  // or
+                                ctx.input(|i| i.key_pressed(egui::Key::Enter))
+                            {
+    
+                                let key = skannabox.clone();
+                                let timestamp: u64 = self.start_time.elapsed().expect("Some time should have elapsed here").as_secs();
+                                if key != "" {
+                                    let incr: i32 = match magnbox.parse() {
+                                        Ok(num) => num,
+                                        Err(_) => 0,
+                                    };
+                                    let magn = match vorulisti.get(&key) {
+                                        Some(value) => incr + value.0,
+                                        None => incr,
+                                    };
+                                    vorulisti.insert(key, (magn, timestamp));
+                                    *listabox = make_display_string(vorulisti);
+                                    scan.request_focus();
+                                    skannabox.clear();
+                                } else {
+                                    scan.request_focus();
+                                }
+                            }
+                            
+                        });
+    
                     });
-
-                });
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    ui.add(egui::TextEdit::multiline(listabox).desired_rows(35));
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        ui.add(egui::TextEdit::multiline(listabox).desired_rows(35));
+                    });
                 });
             });
-        });
+        } else if self.app_switch == 1 {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                ui.add(egui::TextEdit::singleline(add_product));
+                if ctx.input(|i| i.key_pressed(egui::Key::Enter)) {
+                    product_list.push(Product::new(add_product.clone()));
+                }
+                for product in product_list {
+                    ui.horizontal(|ui| {
+                        ui.label(&product.id);
+                        ui.label(&product.name);
+                        ui.label(&product.cost.to_string());
+                        ui.label(&product.price.to_string());
+                        ui.label(&product.stock.to_string());
+                    });
+                }
+            });
+        } else if self.app_switch == 2 {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                ui.label("LOVE");
+            });
+        } else {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                ui.label("YOU");
+            });
+        }
     }
 }
